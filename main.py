@@ -1,6 +1,5 @@
-START_BYTE  = '['
-END_BYTE    = ']'
-MIN_LEN     =  5 # smallest reoccurance to compress
+TAG = "[%d,%d]"
+MIN_LEN =  6 # smallest reoccurance to compress
 
 
 def compress(full_string):
@@ -38,11 +37,15 @@ def compress(full_string):
     while i < len(full_string):
         if i in matches:
             pos, length = matches[i]
-            result += "[%d,%d]" % (pos, length)
+            result += TAG % (pos, length)
             i += length
             continue
-        
-        result += full_string[i]
+
+        ch = full_string[i]
+        if ch == "[":
+            result += "["
+
+        result += ch
         i += 1
 
     return result
@@ -52,18 +55,38 @@ def uncompress(compressed_string):
     return compressed_string
 
 
+def compare(original, compressed):
+    return (1 - len(compressed) / len(original)) * 100
+
+
 if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("usage: %s <input_string>" % sys.argv[0])
+        print("usage: %s [input_string | -f --file file-name]" % sys.argv[0])
         exit(1)
 
-    input_string = sys.argv[1]
+    arg = sys.argv[1]
+    options = ["-f", "--file", "-c", "--compare"]
+
+    if arg in options:
+        if arg == "-f" or arg == "--file":
+            with open(sys.argv[2]) as f:
+                input_string = f.read()
+
+        elif arg == "-c" or arg == "--compare":
+            with open(sys.argv[2]) as f:
+                original = f.read()
+
+            with open(sys.argv[3]) as f:
+                compressed = f.read()
+
+            ratio = compare(original, compressed)
+            print("compression: %.2f%%" %  ratio)
+            exit(0)
+
+    else:
+        input_string = sys.argv[1]
+    
     compressed_string = compress(input_string)
-
-    print(input_string)
     print(compressed_string)
-
-    ratio = (1 - len(compressed_string) / len(input_string)) * 100
-    print("compression: %.2f%%" %  ratio)
