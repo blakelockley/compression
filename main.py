@@ -1,57 +1,90 @@
+from collections import defaultdict, namedtuple
+
 TAG = "[%d,%d]"
 MIN_LEN =  6 # smallest reoccurance to compress
 
+def compress(original, show_debug = True):
 
-def compress(full_string):
+    Match = namedtuple("Match", ["pos", "length"])
 
-    matches = {}
-    limit = len(full_string)
+    substrings = defaultdict(list) #substring -> [pos]
+    matches = {} #reoccurance -> (original_pos, len)
 
-    # find all reoccurances
-    for pos in range(limit - (MIN_LEN - 1)):
-        substring = full_string[pos : pos + MIN_LEN]
+    start = 0
+    while start <= len(original) - MIN_LEN:
 
-        for test_pos in range(pos + MIN_LEN, limit - (MIN_LEN - 1)):
-            test_string = full_string[test_pos : test_pos + MIN_LEN]
+        step = MIN_LEN
+        substring = original[start : start + step]
+        longest_match = Match(None, 0)
 
-            # dont overwrite earlier reoccurances
-            if substring == test_string and test_pos not in matches:
-                true_len = MIN_LEN
+        for pos in substrings[substring]:
 
-                # TODO: refactor
-                while pos + true_len < limit:
-                    substring = full_string[pos : pos + true_len]
-                    test_string = full_string[test_pos : test_pos + true_len]
+            # can we find a longer substring from this pos
+            while pos + step <= start:
 
-                    if substring == test_string:
-                        true_len += 1
-                    else:
-                        break
-                    
-                matches[test_pos] = (pos, true_len - 1)
+                if step > longest_match.length:
+                    longest_match = Match(pos, step)
 
-    i = 0
+                # check one longer than earlier occurance
+                teststring = original[pos : pos + step + 1]
+                nextstring = original[start : start + step + 1]
+
+                # add a longer substring of our earlier match
+                substrings[teststring].append(pos)
+
+                if nextstring != teststring:
+                    break
+
+                step += 1
+
+        if longest_match.pos != None:
+            matches[start] = longest_match
+            start += longest_match.length 
+
+        else:
+            # no match found - add new substring
+            substrings[substring].append(start)
+            # continue from next char
+            start += 1
+
+
+    index = 0
     result = ""
-
+    
     # rebuild with matches
-    while i < len(full_string):
-        if i in matches:
-            pos, length = matches[i]
+    while index < len(original):
+        if index in matches:
+            # TODO: refactor - this dosen't look python - probably a better way
+            pos, length = matches[index]
             result += TAG % (pos, length)
-            i += length
+            index += length
             continue
 
-        ch = full_string[i]
+        # escape tag indicator from original string
+        ch = original[index]
         if ch == "[":
             result += "["
 
         result += ch
-        i += 1
+        index += 1
+
+    if show_debug:
+        result += "\n\n" + "-" * 37 + "DEBUG" + "-" * 38 + "\n"
+
+        for (index, (pos, length)) in matches.items():
+            tag = TAG % (pos, length)
+
+            reoccurance = original[pos : pos + length]
+            reoccurance = reoccurance.replace("\n", "\\n")
+
+            result += "%s: %s\n" % (tag, reoccurance)
 
     return result
 
 
+
 def uncompress(compressed_string):
+    # TODO: implement
     return compressed_string
 
 
@@ -63,11 +96,16 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("usage: %s [input_string | -f --file file-name]" % sys.argv[0])
+        print("usage: %s [input_string | -f --file file-name | "
+        "-c --compare original compressed | -d --debug]" % sys.argv[0])
         exit(1)
 
     arg = sys.argv[1]
+
+    # TODO: implement options with argparse
     options = ["-f", "--file", "-c", "--compare"]
+
+    show_debug = "-d" in sys.argv or "--debug" in sys.argv
 
     if arg in options:
         if arg == "-f" or arg == "--file":
@@ -87,6 +125,7 @@ if __name__ == "__main__":
 
     else:
         input_string = sys.argv[1]
-    
-    compressed_string = compress(input_string)
+        print(input_string)
+
+    compressed_string = compress(input_string, show_debug)
     print(compressed_string)
